@@ -57,3 +57,7 @@ target/
 
 # vim
 *.swp
+
+# etc
+data/
+.ropeproject/
