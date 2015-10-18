@@ -5,6 +5,8 @@ Simulations used for exploring the effects of wishful thinking in decision makin
 ## Requirements
 
 Running this requires Python 2.7, and is untested with other versions.
+Install the requirements with `pip install -r requirements.txt`. It requires
+NumPy, SciPy, and matplotlib.
 
 ## Instructions
 
