@@ -246,7 +246,7 @@ class PMModel:
 
     def init_transitions(self, horizon=None):
         for i, (aname, scale) in enumerate(attitudes):
-            transition_func = self.make_binomial_transition(scale, horizon)
+            transition_func = self.make_transition_func(scale, horizon)
             transitions[aname] = generate_transitions(self.states, self.actions,
                                                       transition_func)
             if horizon is not None:
@@ -255,7 +255,7 @@ class PMModel:
                 fname = dirname + "transitions_{0}_{1}.p".format(i, aname)
             transitions[aname].dump()
 
-    def make_binomial_transition(self, scale, horizon):
+    def make_transition_func(self, scale, horizon):
         """Make transition probabilities using a scaled binomial distribution.
         The actions are "invest" (with index 0) and "market" (with index 1).
         When investing, starting at state S0, the next state is distributed as
