@@ -2,6 +2,7 @@ from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
 import csv
+from util import margined, margined_pm
 
 def scenario_plot(results, attitudes, horizons, num_episodes, fname):
     """Plots the scenario using the data in RESULTS, ATTITUDES, and HORIZONS,
@@ -26,6 +27,7 @@ def scenario_plot(results, attitudes, horizons, num_episodes, fname):
     plt.ylabel('Average Earnings')
     plt.title('Performance for {0} Episodes'.format(num_episodes))
     lines = []
+    # plot each attitude's results
     for attitude_idx, attitude in enumerate(attitudes):
         data = results[attitude_idx]
         avgs = data[:,1]
@@ -63,5 +65,3 @@ def make_existing_plot(origname, destname):
         attitude_idx = int(row[3])
         results[int(row[3])][horizon_idx] = row[:3]
     scenario_plot(results, attitudes, horizons, destname)
-
-
