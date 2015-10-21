@@ -64,8 +64,8 @@ class BasicModel:
         attitudes = ['pessimistic', 'neutral', 'optimistic', 'superOptimistic']
         for idx, attitude in enumerate(self.attitudes):
             fname = dirname + 'transitions_{0}_{1}.p'.format(idx, attitude)
-            transitions[attitude] = np.load(fname)
-            rewards[attitude] = np.load(dirname + 'rewards.p')
+            self.transitions[attitude] = np.load(fname)
+            self.rewards[attitude] = np.load(dirname + 'rewards.p')
 
 class OldModel:
     """Creates a scenario using the model from the original paper, where
@@ -99,10 +99,10 @@ class OldModel:
     def init_transitions(self):
         for i, (aname, gamma) in enumerate(self.attitudes):
             transition_func = self.make_transition_func(gamma)
-            transitions[aname] = generate_transitions(self.states, self.actions,
+            self.transitions[aname] = generate_transitions(self.states, self.actions,
                                                       transition_func)
             fname = self.dirname + "transitions_{0}_{1}.p".format(i, aname)
-            transitions[aname].dump(fname)
+            self.transitions[aname].dump(fname)
 
     def make_transition_func(self, gamma):
         """Make biased transition functions, in the style of the paper:
@@ -133,9 +133,9 @@ class OldModel:
     def init_rewards(self):
         rmat = generate_rewards(self.states, self.actions, self.reward_func)
         for i, (aname, _) in enumerate(self.attitudes):
-            rewards[aname] = rmat
-            fname = dirname + "rewards_{0}_{1}.p".format(i, aname)
-            rewards[aname].dump(fname)
+            self.rewards[aname] = rmat
+            fname = self.dirname + "rewards_{0}_{1}.p".format(i, aname)
+            self.rewards[aname].dump(fname)
 
 class OptimalValueModel:
     """A model using the optimal value function in place of the reward."""
@@ -174,10 +174,10 @@ class OptimalValueModel:
                                       neutral_tmat, self.rmat)
         for i, (aname, gamma) in enumerate(self.attitudes):
             transition_func = self.make_transition_func(aname, gamma, realvals)
-            transitions[aname] = generate_transitions(self.states, self.actions,
+            self.transitions[aname] = generate_transitions(self.states, self.actions,
                                                       f, self.max_time)
-            fname = dirname + "transitions_{0}_{1}_h{2}.p".format(i, aname, horizon)
-            transitions[aname].dump(fname)
+            fname = self.dirname + "transitions_{0}_{1}_h{2}.p".format(i, aname, horizon)
+            self.transitions[aname].dump(fname)
 
     def make_transition_func(self, aname, gamma, realvals):
         """Make a biased transition function using the value function
@@ -213,10 +213,10 @@ class OptimalValueModel:
 
     def init_rewards(self):
         self.rmat = generate_rewards(self.states, self.actions, self.reward_func)
-        for i, (aname, gamma) in enumerate(attitudes):
-            rewards[aname] = rmat
-            fname = dirname + "rewards_{0}_{1}.p".format(i, aname)
-            rewards[aname].dump(fname)
+        for i, (aname, gamma) in enumerate(self.attitudes):
+            self.rewards[aname] = rmat
+            fname = self.dirname + "rewards_{0}_{1}.p".format(i, aname)
+            self.rewards[aname].dump(fname)
 
 class PMModel:
     """A model for the product management experiment."""
@@ -245,15 +245,15 @@ class PMModel:
         self.init_transitions()
 
     def init_transitions(self, horizon=None):
-        for i, (aname, scale) in enumerate(attitudes):
+        for i, (aname, scale) in enumerate(self.attitudes):
             transition_func = self.make_transition_func(scale, horizon)
-            transitions[aname] = generate_transitions(self.states, self.actions,
+            self.transitions[aname] = generate_transitions(self.states, self.actions,
                                                       transition_func)
             if horizon is not None:
-                fname = dirname + "transitions_{0}_{1}_h{2}.p".format(i, aname, horizon)
+                fname = self.dirname + "transitions_{0}_{1}_h{2}.p".format(i, aname, horizon)
             else:
-                fname = dirname + "transitions_{0}_{1}.p".format(i, aname)
-            transitions[aname].dump()
+                fname = self.dirname + "transitions_{0}_{1}.p".format(i, aname)
+            self.transitions[aname].dump(fname)
 
     def make_transition_func(self, scale, horizon):
         """Make transition probabilities using a scaled binomial distribution.
@@ -300,10 +300,10 @@ class PMModel:
                 return self.final_val
             return self.action_vals[action.index]
         rmat = generate_rewards(self.states, self.actions, reward_func)
-        for i, (aname, scale) in enumerate(attitudes):
-            rewards[aname] = rmat
-            fname = dirname + "rewards_{0}_{1}.p".format(i, aname)
-            rewards[aname].dump()
+        for i, (aname, scale) in enumerate(self.attitudes):
+            self.rewards[aname] = rmat
+            fname = self.dirname + "rewards_{0}_{1}.p".format(i, aname)
+            self.rewards[aname].dump(fname)
 
 # main functions: generate transitions/rewards
 

@@ -37,6 +37,15 @@ def run_episode(policy, num_episodes, max_time,
         # lives[:, (n*4):((n+1)*4)] = life
     return lives
 
+def const_policy(action_idx, max_time, num_states):
+    """Generates a policy that performs ACTION_IDX at all time steps and
+    at any state.
+        ACTION_IDX: index of the action we want to perform (int)
+        MAX_TIME: the number of steps in our simulation (positive int)
+        NUM_STATES: the number of states in our scenario (positive int)
+    """
+    return action_idx * np.zeros([max_time, num_states])
+
 def generate_policy(horizon, max_time, transitions, rewards,
                     time_based_trans=False, time_based_reward=False, repeating=True):
     """Generates the policy of our agent, a 2D array with shape MAX_TIME x NUM_STATES

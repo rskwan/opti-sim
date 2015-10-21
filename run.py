@@ -8,11 +8,10 @@ import cPickle
 
 from models import BasicModel, OldModel, OptimalValueModel, PMModel,\
                    basic_reward, stochastic_transition
-from simulation import generate_policy, run_episode
+from simulation import const_policy, generate_policy, run_episode
 from plots import scenario_plot
 from util import make_multiprint
 
-# TODO: refactor this function
 def run_scenario(scenario, model_type, num_episodes):
     """Runs the desired scenario with the specified number of episodes.
        Returns a list of attitudes, a list of horizons, and a NumPy array RESULTS
@@ -23,7 +22,7 @@ def run_scenario(scenario, model_type, num_episodes):
                   (e.g. "sequence") and the second specifying the type (e.g. "old")
         NUM_EPISODES: a positive integer for the number of episodes to run
     """
-    dirname = "data/{}/".format("_".join(scenario))
+    dirname = "data/{}/".format("_".join([scenario, model_type]))
     horizons = [1, 2, 5, 10, 20, 40, 60, 80]
     if scenario == "pmexp":
         horizons = [4, 12, 24, 72]
@@ -40,12 +39,12 @@ def run_scenario(scenario, model_type, num_episodes):
         model = BasicModel(attitudes, dirname)
     else:
         raise Exception("Invalid scenario. Modify and try again.")
-    results = run_sims(dirname, horizons, attitudes, model, num_episodes)
+    results = run_sims(dirname, horizons, attitudes, model_type, model, num_episodes)
     scenario_plot(results, attitudes, horizons, num_episodes,
                   dirname + "results_{0}_plot.png".format(num_episodes))
     return results, attitudes, horizons
 
-def run_sims(dirname, horizons, attitudes, model, num_episodes):
+def run_sims(dirname, horizons, attitudes, model_type, model, num_episodes):
     max_time = max(horizons)
     time_based = False
     if model_type == "valopt":
@@ -68,7 +67,11 @@ def run_sims(dirname, horizons, attitudes, model, num_episodes):
             # compute results
             tmat = model.transitions[attitude]
             rmat = model.rewards[attitude]
-            _, policy = generate_policy(horizon, max_time, tmat, rmat, time_based)
+            if model_type == "const":
+                # TODO: allow const to have something other than 0
+                policy = const_policy(0, max_time, rmat.shape[1])
+            else:
+                _, policy = generate_policy(horizon, max_time, tmat, rmat, time_based)
             episode = run_episode(policy, num_episodes, max_time,
                                   neutral_tmat, rmat, time_based)
             totals = np.array([sum(life[:, 0]) for life in episode])
@@ -164,6 +167,7 @@ def make_from_fixed(model_type, dirname):
 def make_pm_model(dirname):
     if not os.path.exists(dirname):
         os.makedirs(dirname)
+    # TODO: allow user to put in different parameters here
     attitude_pairs = [('pessimistic', 0.05),
                       ('neutral', 0.07),
                       ('optimistic', 0.15)]
@@ -181,7 +185,7 @@ def arg_setup():
     parser.add_argument('scenario',
                         help="""the scenario to use (currently: sequence, fixed,
                         gen_from_fixed, pmexp)""")
-    parser.add_argument('model', help="the kind of model to use (currently: old, valopt)")
+    parser.add_argument('model', help="the kind of model to use (currently: old, valopt, const)")
     parser.add_argument('episodes', type=int, help="the number of episodes to run")
     return parser.parse_args()
 
