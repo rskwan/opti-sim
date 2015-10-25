@@ -44,7 +44,7 @@ def const_policy(action_idx, max_time, num_states):
         MAX_TIME: the number of steps in our simulation (positive int)
         NUM_STATES: the number of states in our scenario (positive int)
     """
-    return action_idx * np.zeros([max_time, num_states])
+    return action_idx * np.ones([max_time, num_states])
 
 def generate_policy(horizon, max_time, transitions, rewards,
                     time_based_trans=False, time_based_reward=False, repeating=True):

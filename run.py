@@ -39,7 +39,7 @@ def run_scenario(scenario, model_type, num_episodes):
         model = BasicModel(attitudes, dirname)
     else:
         raise Exception("Invalid scenario. Modify and try again.")
-    results = run_sims(dirname, horizons, attitudes, model_type, model, num_episodes)
+    results, attitudes = run_sims(dirname, horizons, attitudes, model_type, model, num_episodes)
     scenario_plot(results, attitudes, horizons, num_episodes,
                   dirname + "results_{0}_plot.png".format(num_episodes))
     return results, attitudes, horizons
@@ -56,37 +56,75 @@ def run_sims(dirname, horizons, attitudes, model_type, model, num_episodes):
     readableout = open(dirname + "results_{0}_readable.txt".format(num_episodes), 'w+')
     verboseout = open(dirname + "results_{0}_verbose.txt".format(num_episodes), 'w+')
     print_readverb = make_multiprint([readableout, verboseout])
-    # note: "neutral" must be an attitude
-    results = np.zeros((len(attitudes), len(horizons), 3))
+    # variables only used for constvar
+    # TODO: allow for >2 actions?
+    num_actions = 2
+    new_attitudes = []
+    policies = []
+    if model_type == "constvar":
+        for action_idx in range(num_actions):
+            policies.append(const_policy(action_idx, max_time, len(model.states)))
+        results = np.zeros((len(attitudes) * num_actions, len(horizons), 3))
+    else:
+        results = np.zeros((len(attitudes), len(horizons), 3))
     for horizon_idx, horizon in enumerate(horizons):
         print_readverb("Horizon: {}".format(horizon))
-        if model_type == "valopt":
-            model.init_transitions(horizon)
-        neutral_tmat = model.transitions['neutral']
-        for attitude_idx, attitude in enumerate(attitudes):
-            # compute results
-            tmat = model.transitions[attitude]
-            rmat = model.rewards[attitude]
-            if model_type == "const":
-                # TODO: allow const to have something other than 0
-                policy = const_policy(0, max_time, rmat.shape[1])
-            else:
-                _, policy = generate_policy(horizon, max_time, tmat, rmat, time_based)
-            episode = run_episode(policy, num_episodes, max_time,
-                                  neutral_tmat, rmat, time_based)
-            totals = np.array([sum(life[:, 0]) for life in episode])
-            mean = np.average(totals)
-            stderr = np.std(totals) / math.sqrt(num_episodes)
-            results[attitude_idx][horizon_idx] = [horizon, mean, stderr]
-            # output to files
-            writer.writerow([horizon, mean, stderr, attitude_idx, attitude])
-            print_readverb("{0}: mean = {1}, stderr = {2}".format(attitude, mean, stderr))
-            print("Totals: {0}".format(totals), file=verboseout)
-            print("Policy for {0}: {1}".format(attitude, policy), file=verboseout)
-            polfname = "policy_{0}_{1}_{2}_{3}.p".format(num_episodes, horizon,
-                                                         attitude_idx, attitude)
-            cPickle.dump((attitude, policy), open(dirname + polfname, 'w+'))
-    return results
+        if model_type == "constvar":
+            """In the `constvar` model, we vary the true transition matrix,
+            rather than the policy, based on beliefs. We take a constant policy
+            (one for each action)."""
+            for attitude_idx, attitude in enumerate(attitudes):
+                # compute results
+                tmat = model.transitions[attitude]
+                rmat = model.rewards[attitude]
+                for action_idx in range(num_actions):
+                    new_att_idx = (attitude_idx * num_actions) + action_idx
+                    new_attitude = attitude + str(action_idx)
+                    if len(new_attitudes) < len(attitudes) * num_actions:
+                        new_attitudes.append(new_attitude)
+                    totals, mean, stderr = episode_stats(policies[action_idx], num_episodes,
+                                                         max_time, tmat, rmat, time_based)
+                    results[new_att_idx][horizon_idx] = [horizon, mean, stderr]
+                    # output to files
+                    writer.writerow([horizon, mean, stderr, new_att_idx, new_attitude])
+                    print_readverb("{0}: mean = {1}, stderr = {2}".format(new_attitude, mean, stderr))
+                    print("Totals: {0}".format(totals), file=verboseout)
+                    print("Policy for {0}: {1}".format(new_attitude, policies[action_idx]), file=verboseout)
+        else:
+            if model_type == "valopt":
+                model.init_transitions(horizon)
+            # note: "neutral" must be an attitude
+            neutral_tmat = model.transitions['neutral']
+            for attitude_idx, attitude in enumerate(attitudes):
+                rmat = model.rewards[attitude]
+                if model_type == "const":
+                    # TODO: allow const to have something other than 0
+                    policy = const_policy(0, max_time, rmat.shape[1])
+                else:
+                    tmat = model.transitions[attitude]
+                    _, policy = generate_policy(horizon, max_time, tmat, rmat, time_based)
+                totals, mean, stderr = episode_stats(policy, num_episodes, max_time,
+                                                     neutral_tmat, rmat, time_based)
+                results[attitude_idx][horizon_idx] = [horizon, mean, stderr]
+                # output to files
+                writer.writerow([horizon, mean, stderr, attitude_idx, attitude])
+                print_readverb("{0}: mean = {1}, stderr = {2}".format(attitude, mean, stderr))
+                print("Totals: {0}".format(totals), file=verboseout)
+                print("Policy for {0}: {1}".format(attitude, policy), file=verboseout)
+                polfname = "policy_{0}_{1}_{2}_{3}.p".format(num_episodes, horizon,
+                                                             attitude_idx, attitude)
+                cPickle.dump((attitude, policy), open(dirname + polfname, 'w+'))
+    if len(new_attitudes) > 0:
+        attitudes = new_attitudes
+    return results, attitudes
+
+def episode_stats(policy, num_episodes, max_time, tmat, rmat, time_based):
+    episode = run_episode(policy, num_episodes, max_time,
+                          tmat, rmat, time_based)
+    totals = np.array([sum(life[:, 0]) for life in episode])
+    mean = np.average(totals)
+    stderr = np.std(totals) / math.sqrt(num_episodes)
+    return totals, mean, stderr
 
 def make_sequence_model(model_type, dirname, max_time):
     if not os.path.exists(dirname):
@@ -185,7 +223,9 @@ def arg_setup():
     parser.add_argument('scenario',
                         help="""the scenario to use (currently: sequence, fixed,
                         gen_from_fixed, pmexp)""")
-    parser.add_argument('model', help="the kind of model to use (currently: old, valopt, const)")
+    parser.add_argument('model',
+                        help="""the kind of model to use
+                        (currently: old, valopt, const, constvar)""")
     parser.add_argument('episodes', type=int, help="the number of episodes to run")
     return parser.parse_args()
 

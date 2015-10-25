@@ -248,7 +248,7 @@ class PMModel:
         for i, (aname, scale) in enumerate(self.attitudes):
             transition_func = self.make_transition_func(scale, horizon)
             self.transitions[aname] = generate_transitions(self.states, self.actions,
-                                                      transition_func)
+                                                           transition_func)
             if horizon is not None:
                 fname = self.dirname + "transitions_{0}_{1}_h{2}.p".format(i, aname, horizon)
             else:
